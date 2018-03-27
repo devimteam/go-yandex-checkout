@@ -1,4 +1,4 @@
-# go-yandex-money
+# go-yandex-checkout
 
 API client realization
 
