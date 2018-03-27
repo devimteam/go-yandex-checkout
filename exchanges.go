@@ -1,4 +1,4 @@
-package go_yandex_money
+package go_yandex_checkout
 
 import "time"
 
