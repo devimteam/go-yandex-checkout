@@ -4,6 +4,7 @@ import (
 	"testing"
 	"github.com/devimteam/go-yandex-checkout"
 	"encoding/json"
+	"fmt"
 )
 
 func TestGetPaymentResponse(t *testing.T) {
@@ -36,13 +37,26 @@ func TestGetPaymentResponse(t *testing.T) {
 	if r.ID != expected {
 		t.Error("Expected", expected, ",got", r.ID)
 	}
-	if r.Amount.Value != 4.0 {
-		t.Error("Expected 4.0, got", r.Amount.Value)
+	if r.Amount.Value.V != 4.0 {
+		t.Error("Expected 4.0, got", r.Amount.Value.V)
 	}
 	if r.PaymentMethod.Saved != false {
 		t.Error("Expected false, got true")
 	}
-	if r.PaymentMethod.Card.ExpiryMonth != 4 {
-		t.Error("Expected 4, got", r.PaymentMethod.Card.ExpiryMonth)
+	if r.PaymentMethod.Card.ExpiryMonth.V != 4 {
+		t.Error("Expected 4, got", r.PaymentMethod.Card.ExpiryMonth.V)
+	}
+
+	tmp, _ := json.Marshal(r)
+	fmt.Println(string(tmp))
+
+	r = &go_yandex_checkout.GetPaymentResponse{}
+	json.Unmarshal(tmp, r)
+
+	if r.Amount.Value.V != 4.0 {
+		t.Error("Expected 4.0, got", r.Amount.Value.V)
+	}
+	if r.PaymentMethod.Card.ExpiryMonth.V != 4 {
+		t.Error("Expected 4, got", r.PaymentMethod.Card.ExpiryMonth.V)
 	}
 }

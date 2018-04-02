@@ -24,15 +24,15 @@ const (
 )
 
 type Amount struct {
-	Value    float64 `json:"value"`
-	Currency string  `json:"currency"`
+	Value    StrFloat64 `json:"value"`
+	Currency string     `json:"currency"`
 }
 
 type Card struct {
-	Last4       string `json:"last4"`
-	ExpiryMonth int    `json:"expiry_month"`
-	ExpiryYear  int    `json:"expiry_month"`
-	CardType    string `json:"card_type"`
+	Last4       string   `json:"last4"`
+	ExpiryMonth StrInt64 `json:"expiry_month"`
+	ExpiryYear  StrInt64 `json:"expiry_year"`
+	CardType    string   `json:"card_type"`
 }
 
 type Receipt struct {
