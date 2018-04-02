@@ -42,4 +42,7 @@ func TestGetPaymentResponse(t *testing.T) {
 	if r.PaymentMethod.Saved != false {
 		t.Error("Expected false, got true")
 	}
+	if r.PaymentMethod.Card.ExpiryMonth != 4 {
+		t.Error("Expected 4, got", r.PaymentMethod.Card.ExpiryMonth)
+	}
 }
