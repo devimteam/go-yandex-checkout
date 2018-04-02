@@ -35,6 +35,18 @@ type Card struct {
 	CardType    string `json:"card_type"`
 }
 
+type Receipt struct {
+	Items []struct {
+		Description string `json:"description"`
+		Quantity    string `json:"quantity"`
+		Amount      Amount `json:"amount"`
+		VatCode     int    `json:"vat_code"` // https://kassa.yandex.ru/docs/guides/#kody-stawok-nds
+	} `json:"items"`
+	TaxSystemCode *int   `json:"tax_system_code"`
+	Phone         string `json:"phone"` // https://ru.wikipedia.org/wiki/E.164
+	Email         string
+}
+
 const (
 	CONFIRMATION_TYPE__REDIRECT = "redirect"
 	CONFIRMATION_TYPE__EXTERNAL = "external"
@@ -70,7 +82,7 @@ type PaymentMethod struct {
 }
 
 type CreatePaymentRequest struct {
-	Amount Amount `json:"amount"`
+	Amount            Amount `json:"amount"`
 	PaymentMethodData struct {
 		Type string `json:"type"`
 	} `json:"payment_method_data"`
@@ -119,7 +131,8 @@ type PaymentResponse struct {
 type GetPaymentResponse PaymentResponse
 
 type CapturePaymentRequest struct {
-	Amount Amount `json:"amount"`
+	Amount  Amount  `json:"amount"`
+	Receipt Receipt `json:"receipt"`
 }
 
 type CapturePaymentResponse PaymentResponse
@@ -127,3 +140,35 @@ type CapturePaymentResponse PaymentResponse
 type CancelPaymentRequest struct{}
 
 type CancelPaymentResponse PaymentResponse
+
+type CreateRefundRequest struct {
+	PaymentID   string  `json:"PaymentID"`
+	Amount      Amount  `json:"amount"`
+	Description *string `json:"description"`
+	Receipt     Receipt `json:"receipt"`
+}
+
+const (
+	REFUND_STATUS__CANCELED  = "canceled"
+	REFUND_STATUS__SUCCEEDED = "succeeded"
+)
+
+const (
+	REFUND_RECEIPT_REGISTRATION_PENDING   = "pending"
+	REFUND_RECEIPT_REGISTRATION_SUCCEEDED = "succeeded"
+	REFUND_RECEIPT_REGISTRATION_CANCELED  = "canceled"
+)
+
+type RefundResponse struct {
+	ID                  string    `json:"id"`
+	PaymentID           string    `json:"PaymentID"`
+	Status              string    `json:"status"`
+	CreatedAt           time.Time `json:"created_at"`
+	Amount              Amount    `json:"amount"`
+	ReceiptRegistration string    `json:"receipt_registration"`
+	Description         *string   `json:"description"`
+}
+
+type CreateRefundResponse RefundResponse
+
+type GetRefundResponse RefundResponse

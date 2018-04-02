@@ -3,10 +3,10 @@ package go_yandex_checkout
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
-	"fmt"
 )
 
 const ApiEndpoint = "https://payment.yandex.net/api/v3/"
@@ -14,6 +14,10 @@ const ApiEndpoint = "https://payment.yandex.net/api/v3/"
 type YandexCheckoutClient interface {
 	CreatePayment(request *CreatePaymentRequest, transactionId string) (*CreatePaymentResponse, error)
 	GetPaymentInfo(paymentId string) (*GetPaymentResponse, error)
+	CapturePayment(paymentId string, reqObj *CapturePaymentRequest) (*CapturePaymentResponse, error)
+	CancelPayment(paymentId string, reqObj *CancelPaymentRequest) (*CancelPaymentResponse, error)
+	CreateRefund(request *CreateRefundRequest) (*CreateRefundResponse, error)
+	GetRefundInfo(refundId string) (*GetRefundResponse, error)
 }
 
 type ycc struct {
@@ -32,65 +36,129 @@ func (svc *ycc) send(request *http.Request, idempotenceKey string) (*http.Respon
 	if err != nil {
 		return nil, err
 	}
-	return resp, nil
-}
-
-func (svc *ycc) sendPostJson(reqObj interface{}, resObj interface{}, idempotenceKey string) error {
-	jsonStr, err := json.Marshal(reqObj)
-	if nil != err {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", svc.url, bytes.NewBuffer(jsonStr))
-	resp, err := svc.send(req, idempotenceKey)
-	defer resp.Body.Close()
-
-	respBody, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode == 200 {
-		err = json.Unmarshal(respBody, resObj)
-		if err != nil {
-			return err
-		}
+		return resp, nil
 	} else if resp.StatusCode == 202 {
-		time.Sleep(1 * time.Second)
-		return svc.sendPostJson(reqObj, resObj, idempotenceKey)
+		time.Sleep(500 * time.Millisecond)
+		return svc.send(request, idempotenceKey)
 	} else if resp.StatusCode >= 400 {
+		respBody, _ := ioutil.ReadAll(resp.Body)
 		pr := &ProcessingResponse{}
 		err = json.Unmarshal(respBody, pr)
 		if resp.StatusCode == 429 {
 			if *pr.RetryAfter > 0 {
 				time.Sleep(pr.GetSleepTime())
-				return svc.sendPostJson(reqObj, resObj, idempotenceKey)
+				return svc.send(request, idempotenceKey)
 			}
 		} else {
-			return err
+			return resp, err
 		}
+	}
+
+	return resp, nil
+}
+
+func (svc *ycc) sendPostJson(url string, reqObj interface{}, resObj interface{}, idempotenceKey string) error {
+	jsonStr, err := json.Marshal(reqObj)
+	if nil != err {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	resp, err := svc.send(req, idempotenceKey)
+	defer resp.Body.Close()
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(respBody, resObj)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
 func (svc *ycc) CreatePayment(request *CreatePaymentRequest, transactionId string) (*CreatePaymentResponse, error) {
-	res := &CreatePaymentResponse{}
-	err := svc.sendPostJson(request, res, transactionId)
-	return res, err
+	resObj := &CreatePaymentResponse{}
+	err := svc.sendPostJson(svc.url, request, resObj, transactionId)
+	if nil != err {
+		return nil, err
+	}
+
+	return resObj, nil
 }
 
 func (svc *ycc) GetPaymentInfo(paymentId string) (*GetPaymentResponse, error) {
 	transactionId := "GetPayment-" + paymentId
 	resObj := &GetPaymentResponse{}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%spayments/%s", svc.url, paymentId), nil)
+	req, _ := http.NewRequest("GET", fmt.Sprintf("%spayments/%s", svc.url, paymentId), nil)
 	resp, err := svc.send(req, transactionId)
 	defer resp.Body.Close()
 
 	respBody, _ := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(respBody, resObj)
+	if nil != err {
+		return nil, err
+	}
 
-	// TODO: check response (similar to previous method)
+	return resObj, nil
+}
 
-	return resObj, err
+func (svc *ycc) CapturePayment(paymentId string, reqObj *CapturePaymentRequest) (*CapturePaymentResponse, error) {
+	transactionId := "CapturePayment-" + paymentId
+	resObj := &CapturePaymentResponse{}
+
+	url := fmt.Sprintf("%spayments/%s/capture", svc.url, paymentId)
+	err := svc.sendPostJson(url, reqObj, resObj, transactionId)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return resObj, nil
+}
+
+func (svc *ycc) CancelPayment(paymentId string, reqObj *CancelPaymentRequest) (*CancelPaymentResponse, error) {
+	transactionId := "CancelPayment-" + paymentId
+	resObj := &CancelPaymentResponse{}
+
+	url := fmt.Sprintf("%spayments/%s/cancel", svc.url, paymentId)
+	err := svc.sendPostJson(url, reqObj, resObj, transactionId)
+
+	if nil != err {
+		return nil, err
+	}
+
+	return resObj, nil
+}
+
+func (svc *ycc) CreateRefund(request *CreateRefundRequest) (*CreateRefundResponse, error) {
+	resObj := &CreateRefundResponse{}
+	url := fmt.Sprintf("%srefunds", svc.url)
+	err := svc.sendPostJson(url, request, resObj, request.PaymentID)
+	if nil != err {
+		return nil, err
+	}
+
+	return resObj, nil
+}
+
+func (svc *ycc) GetRefundInfo(refundId string) (*GetRefundResponse, error) {
+	transactionId := "get-refund-" + refundId
+	resObj := &GetRefundResponse{}
+
+	req, _ := http.NewRequest("GET", fmt.Sprintf("%srefunds/%s", svc.url, refundId), nil)
+	resp, err := svc.send(req, transactionId)
+	defer resp.Body.Close()
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(respBody, resObj)
+	if nil != err {
+		return nil, err
+	}
+
+	return resObj, nil
 }
 
 func NewYandexCheckoutClient(url string, shopId string, secretKey string) YandexCheckoutClient {
