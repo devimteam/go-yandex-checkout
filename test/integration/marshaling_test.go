@@ -1,10 +1,11 @@
 package integration
 
 import (
-	"testing"
-	"github.com/devimteam/go-yandex-checkout"
 	"encoding/json"
 	"fmt"
+	"testing"
+
+	"github.com/devimteam/go-yandex-checkout"
 )
 
 func TestGetPaymentResponse(t *testing.T) {
